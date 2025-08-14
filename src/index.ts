@@ -1,38 +1,28 @@
 import fs from "fs";
 import path from "path";
 import { TICKERS } from "./config.js";
-import { fetchBrapiBatch } from "./brapi.js";
-import { priceGraham, priceBazin } from "./compute.js";
+import { fetchBrapiOne } from "./brapi.js";
+
+function sleep(ms: number){ return new Promise(r => setTimeout(r, ms)); }
 
 async function run() {
-  const batchSize = 10; // Startup: 10 por request; ajuste se for Pro (20). :contentReference[oaicite:3]{index=3}
-  const chunks: string[][] = [];
-  for (let i = 0; i < TICKERS.length; i += batchSize)
-    chunks.push(TICKERS.slice(i, i + batchSize));
-
-  const results: any[] = [];
-  for (const chunk of chunks) {
-    const part = await fetchBrapiBatch(chunk);
-    results.push(...part);
-    await new Promise(r => setTimeout(r, 900)); // polidez
+  const rows: any[] = [];
+  for (const t of TICKERS) {
+    const row = await fetchBrapiOne(t);
+    rows.push({
+      ...row,
+      // cálculos simples que independem de módulos
+      priceGraham: (row.lpa !== "" && row.vpa !== "") ? Number(Math.sqrt(22.5 * Number(row.lpa) * Number(row.vpa)).toFixed(2)) : "",
+      priceBazin: (row.dy !== "" && row.price !== "") ? Number((Number(row.price) * (Number(row.dy)/100) / 0.06).toFixed(2)) : "",
+      updatedAt: new Date().toISOString()
+    });
+    await sleep(800); // polidez e rate-limit do Free
   }
 
-  // acrescenta cálculos básicos; o resto você calcula no Sheets
-  const enriched = results.map(r => ({
-    ...r,
-    priceGraham: priceGraham(r),
-    priceBazin: priceBazin(r),
-    updatedAt: new Date().toISOString()
-  }));
-
-  // grava em docs/all.json (para GitHub Pages)
   const outDir = path.join(process.cwd(), "docs");
-  if (!fs.existsSync(outDir)) fs.mkdirSync(outDir, { recursive: true });
-  fs.writeFileSync(path.join(outDir, "all.json"), JSON.stringify(enriched, null, 2), "utf8");
-  console.log(`OK: ${enriched.length} tickers → docs/all.json`);
+  fs.mkdirSync(outDir, { recursive: true });
+  fs.writeFileSync(path.join(outDir, "all.json"), JSON.stringify(rows, null, 2), "utf8");
+  console.log(`OK Free: ${rows.length} tickers → docs/all.json`);
 }
 
-run().catch(err => {
-  console.error(err?.response?.data || err);
-  process.exit(1);
-});
+run().catch(err => { console.error(err?.response?.data || err); process.exit(1); });
