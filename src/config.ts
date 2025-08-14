@@ -1,14 +1,7 @@
-export const TICKERS: string[] = [
-  "PETR4","VALE3","ITUB4" // adicione aqui
-];
+export const TICKERS: string[] = ["PETR4","VALE3","ITUB4"]; // edite
 
-// use Secrets do GitHub para BRAPI_TOKEN
+// use GitHub Secrets
 export const BRAPI_TOKEN = process.env.BRAPI_TOKEN || "";
-// módulos importantes (trazem perfil, estatísticas e dados financeiros)
-export const BRAPI_MODULES = [
-  "summaryProfile",
-  "defaultKeyStatistics",
-  "financialData",
-  "balanceSheetHistory",
-  "incomeStatementHistory"
-].join(",");
+
+// no plano Free NÃO usamos modules; só flags básicas
+export const USE_MODULES = false;
